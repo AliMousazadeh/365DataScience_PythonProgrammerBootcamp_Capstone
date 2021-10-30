@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 import math
+import matplotlib.pyplot as plt
 from numpy.lib.type_check import imag
 
 
@@ -60,7 +61,10 @@ img_resized = resize_image(img, img_size_new)
 print(type(img_resized))
 print(np.shape(img_resized))
 
+# print(np.max(img_resized))
 img_resized_z = zscore(img_resized)
+# img_resized_z = (img_resized) / 255
+# img_resized_z = img_resized
 img_resized_z_guassian = gaussian_kernel(img_resized_z)
 
 intensity_mat_x = (
@@ -71,9 +75,60 @@ intensity_mat_y = (
 intensity_total = np.sqrt(intensity_mat_x**2 + intensity_mat_y**2)
 gradient_total = np.arctan2(intensity_mat_y, intensity_mat_x)
 
-# angles = np.array([0, math.pi/4, math.pi/2, math.pi*3/4])
+intensity_total_pre_grad = np.copy(intensity_total)
 
-intensity_total_z = zscore(intensity_total)
+angles = np.array([0, math.pi/4, math.pi/2, math.pi*3/4])
 
-print(np.mean(intensity_total_z))
-dispay_image(intensity_total_z)
+for i in range(1, np.shape(intensity_total)[0]-1):
+    for j in range(1, np.shape(intensity_total)[1]-1):
+        index = np.fabs(np.fabs(gradient_total[i, j]) - angles) < 0.1
+
+        if index[0]:
+            if not(intensity_total[i, j] > intensity_total[i+1, j] and intensity_total[i, j] > intensity_total[i-1, j]):
+                intensity_total[i, j] = 0
+        elif index[1]:
+            if not(intensity_total[i, j] > intensity_total[i+1, j+1] and intensity_total[i, j] > intensity_total[i-1, j-1]):
+                intensity_total[i, j] = 0
+        elif index[2]:
+            if not(intensity_total[i, j] > intensity_total[i, j+1] and intensity_total[i, j] > intensity_total[i, j-1]):
+                intensity_total[i, j] = 0
+        elif index[3]:
+            if not(intensity_total[i, j] > intensity_total[i-1, j+1] and intensity_total[i, j] > intensity_total[i+1, j-1]):
+                intensity_total[i, j] = 0
+        else:
+            print('threshold too low')
+
+
+mu, st = np.mean(intensity_total), np.std(intensity_total)
+min_intensity, max_intensity = np.min(intensity_total), np.max(intensity_total)
+print(mu, st, min_intensity, max_intensity)
+
+intensity_total_grad = np.copy(intensity_total)
+
+pixel_status = np.zeros(np.shape(intensity_total))
+pixel_status[intensity_total > 20*mu] = 1
+pixel_status[intensity_total < 5*mu] = -1
+
+for i in range(1, np.shape(pixel_status)[0]-1):
+    for j in range(1, np.shape(pixel_status)[1]-1):
+        someone_stronger = np.sum(
+            (pixel_status[i-1:i+2, j-1:j+2] > 0).astype(int))
+
+        if pixel_status[i, j] == -1:
+            if someone_stronger:
+                pixel_status[i, j] = 1
+            else:
+                intensity_total[i, j] = 0
+
+
+intensity_total_strong = np.copy(intensity_total)
+
+rmse = np.sqrt(np.mean((intensity_total_grad-intensity_total_strong)**2))
+print(rmse)
+
+f, axarr = plt.subplots(2, 2)
+axarr[0, 0].imshow(img_resized_z_guassian, cmap='gray')
+axarr[0, 1].imshow(zscore(intensity_total_pre_grad), cmap='gray')
+axarr[1, 0].imshow(zscore(intensity_total_grad), cmap='gray')
+axarr[1, 1].imshow(zscore(intensity_total_strong), cmap='gray')
+plt.show()
