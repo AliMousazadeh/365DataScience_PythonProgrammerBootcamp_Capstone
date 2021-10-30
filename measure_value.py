@@ -109,6 +109,7 @@ pixel_status = np.zeros(np.shape(intensity_total))
 pixel_status[intensity_total > 20*mu] = 1
 pixel_status[intensity_total < 5*mu] = -1
 
+pixel_status_memory = np.copy(pixel_status)
 for i in range(1, np.shape(pixel_status)[0]-1):
     for j in range(1, np.shape(pixel_status)[1]-1):
         someone_stronger = np.sum(
@@ -116,19 +117,20 @@ for i in range(1, np.shape(pixel_status)[0]-1):
 
         if pixel_status[i, j] == -1:
             if someone_stronger:
-                pixel_status[i, j] = 1
+                pixel_status_memory[i, j] = 1
             else:
                 intensity_total[i, j] = 0
-
+pixel_status = np.copy(pixel_status_memory)
 
 intensity_total_strong = np.copy(intensity_total)
+intensity_total_strong_final = (intensity_total_strong > 0).astype(int)
 
 rmse = np.sqrt(np.mean((intensity_total_grad-intensity_total_strong)**2))
 print(rmse)
 
 f, axarr = plt.subplots(2, 2)
-axarr[0, 0].imshow(img_resized_z_guassian, cmap='gray')
-axarr[0, 1].imshow(zscore(intensity_total_pre_grad), cmap='gray')
-axarr[1, 0].imshow(zscore(intensity_total_grad), cmap='gray')
-axarr[1, 1].imshow(zscore(intensity_total_strong), cmap='gray')
+axarr[0, 0].imshow(zscore(intensity_total_pre_grad), cmap='gray')
+axarr[0, 1].imshow(zscore(intensity_total_grad), cmap='gray')
+axarr[1, 0].imshow(zscore(intensity_total_strong), cmap='gray')
+axarr[1, 1].imshow(zscore(intensity_total_strong_final), cmap='gray')
 plt.show()
