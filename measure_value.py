@@ -2,6 +2,7 @@ import numpy as np
 import cv2
 import math
 import matplotlib.pyplot as plt
+from numpy import ma
 from numpy.lib.type_check import imag
 
 
@@ -21,6 +22,21 @@ def zscore(img):
 
 def clip(x, l, u):
     return l if x < l else u if x > u else x
+
+
+def k_largest_index_argsort(a, k):
+    idx = np.argsort(a.ravel())[:-k-1:-1]
+    return np.column_stack(np.unravel_index(idx, a.shape))
+
+
+def draw_circle(grid, center, radius):
+    width, height = np.shape(grid)
+    T = np.arange(0, 2*math.pi, 2*math.pi/100)
+    for t in T:
+        x_idx = round(clip(center[0] + radius*math.cos(t), 0, width-1))
+        y_idx = round(clip(center[1] + radius*math.sin(t), 0, height-1))
+        grid[x_idx, y_idx] = 1
+    return grid
 
 
 def gaussian_kernel(img):
@@ -54,8 +70,10 @@ def gaussian_kernel(img):
     return img_convoluted
 
 
+reduction_ratio = 3
 img = cv2.imread('19.2 capstone_coins.png', 0).astype(float)
-img_size_new = (np.shape(img)[1]//2, np.shape(img)[0]//2)
+img_size_new = (np.shape(img)[1]//reduction_ratio,
+                np.shape(img)[0]//reduction_ratio)
 img_resized = resize_image(img, img_size_new)
 
 print(type(img_resized))
@@ -110,6 +128,7 @@ pixel_status[intensity_total > 20*mu] = 1
 pixel_status[intensity_total < 5*mu] = -1
 
 pixel_status_memory = np.copy(pixel_status)
+strong_points = []
 for i in range(1, np.shape(pixel_status)[0]-1):
     for j in range(1, np.shape(pixel_status)[1]-1):
         someone_stronger = np.sum(
@@ -118,8 +137,12 @@ for i in range(1, np.shape(pixel_status)[0]-1):
         if pixel_status[i, j] == -1:
             if someone_stronger:
                 pixel_status_memory[i, j] = 1
+                strong_points.append([i, j])
             else:
                 intensity_total[i, j] = 0
+        elif pixel_status[i, j] == 1:
+            strong_points.append([i, j])
+
 pixel_status = np.copy(pixel_status_memory)
 
 intensity_total_strong = np.copy(intensity_total)
@@ -134,3 +157,46 @@ axarr[0, 1].imshow(zscore(intensity_total_grad), cmap='gray')
 axarr[1, 0].imshow(zscore(intensity_total_strong), cmap='gray')
 axarr[1, 1].imshow(zscore(intensity_total_strong_final), cmap='gray')
 plt.show()
+
+
+print('Counting the votes...')
+W, H = np.shape(intensity_total)
+radius_of_coins = np.round(np.array([48, 55, 67, 71]) * 2/reduction_ratio)
+number_of_coins = [1, 4, 1, 2]
+value_of_coins = [5, 1, 10, 2]
+T = np.arange(0, 2*math.pi, 2*math.pi/100)
+votes_total = np.zeros((W, H))
+circles = {}
+for j in range(len(radius_of_coins)):
+    votes_for_radius = np.zeros((W, H))
+    for i in range(len(strong_points)):
+        for t in T:
+            x_idx = round(strong_points[i][0] + radius_of_coins[j]*math.cos(t))
+            y_idx = round(strong_points[i][1] + radius_of_coins[j]*math.sin(t))
+            if (x_idx >= 0 and x_idx < W) and (y_idx >= 0 and y_idx < H):
+                votes_for_radius[x_idx, y_idx] += 1
+
+    votes_total += votes_for_radius
+    best_centers = k_largest_index_argsort(
+        votes_for_radius, number_of_coins[j])
+    circles[j] = best_centers
+    print(f'done with {radius_of_coins[j]}')
+    print(best_centers)
+
+
+dispay_image(zscore(votes_total))
+# print(circles)
+# print(circles[0])
+# print(circles[0][0])
+# print(circles[0][0][0])
+
+
+print('plotting final grid')
+final_grid = np.zeros(np.shape(intensity_total))
+for i in range(len(radius_of_coins)):
+    for j in range(len(circles[i][0])):
+        final_grid += draw_circle(final_grid,
+                                  circles[i][0], radius_of_coins[i])
+print('done')
+
+dispay_image(zscore(final_grid))
