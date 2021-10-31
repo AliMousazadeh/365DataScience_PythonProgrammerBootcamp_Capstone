@@ -31,7 +31,7 @@ def k_largest_index_argsort(a, k):
 
 def draw_circle(grid, center, radius):
     width, height = np.shape(grid)
-    T = np.arange(0, 2*math.pi, 2*math.pi/100)
+    T = np.arange(0, 2*math.pi, 2*math.pi/360)
     for t in T:
         x_idx = round(clip(center[0] + radius*math.cos(t), 0, width-1))
         y_idx = round(clip(center[1] + radius*math.sin(t), 0, height-1))
@@ -44,12 +44,12 @@ def gaussian_kernel(img):
     width, height = np.shape(img)
 
     kernel = np.array([
-        [2, 4,  5,  4,  2],
-        [4, 9,  12, 9,  4],
-        [5, 12, 15, 12, 5],
-        [4, 9,  12, 9,  4],
-        [2, 4,  6,  4,  2]
-    ]) / 159
+        [1, 4,  6,  4,  1],
+        [4, 16, 24, 16, 4],
+        [6, 24, 36, 24, 6],
+        [4, 16, 24, 16, 4],
+        [2, 4,  6,  4,  1]
+    ]) / 256
 
     kernel_width, kernel_height = np.shape(kernel)
 
@@ -70,11 +70,11 @@ def gaussian_kernel(img):
     return img_convoluted
 
 
-reduction_ratio = 3
-img = cv2.imread('19.2 capstone_coins.png', 0).astype(float)
+reduction_ratio = 2
+img = cv2.imread('19.2 capstone_coins.png', cv2.IMREAD_GRAYSCALE)
 img_size_new = (np.shape(img)[1]//reduction_ratio,
                 np.shape(img)[0]//reduction_ratio)
-img_resized = resize_image(img, img_size_new)
+img_resized = resize_image(img, img_size_new).astype(float)
 
 print(type(img_resized))
 print(np.shape(img_resized))
@@ -124,8 +124,8 @@ print(mu, st, min_intensity, max_intensity)
 intensity_total_grad = np.copy(intensity_total)
 
 pixel_status = np.zeros(np.shape(intensity_total))
-pixel_status[intensity_total > 20*mu] = 1
-pixel_status[intensity_total < 5*mu] = -1
+pixel_status[intensity_total > 0.3*max_intensity] = 1
+pixel_status[intensity_total < 0.15*max_intensity] = -1
 
 pixel_status_memory = np.copy(pixel_status)
 strong_points = []
@@ -164,39 +164,14 @@ W, H = np.shape(intensity_total)
 radius_of_coins = np.round(np.array([48, 55, 67, 71]) * 2/reduction_ratio)
 number_of_coins = [1, 4, 1, 2]
 value_of_coins = [5, 1, 10, 2]
-T = np.arange(0, 2*math.pi, 2*math.pi/100)
+T = np.arange(0, 2*math.pi, 2*math.pi/200)
 votes_total = np.zeros((W, H))
-circles = {}
-for j in range(len(radius_of_coins)):
-    votes_for_radius = np.zeros((W, H))
-    for i in range(len(strong_points)):
+for i in range(len(strong_points)):
+    for j in range(len(radius_of_coins)):
         for t in T:
             x_idx = round(strong_points[i][0] + radius_of_coins[j]*math.cos(t))
             y_idx = round(strong_points[i][1] + radius_of_coins[j]*math.sin(t))
             if (x_idx >= 0 and x_idx < W) and (y_idx >= 0 and y_idx < H):
-                votes_for_radius[x_idx, y_idx] += 1
-
-    votes_total += votes_for_radius
-    best_centers = k_largest_index_argsort(
-        votes_for_radius, number_of_coins[j])
-    circles[j] = best_centers
-    print(f'done with {radius_of_coins[j]}')
-    print(best_centers)
-
+                votes_total[x_idx, y_idx] += 1
 
 dispay_image(zscore(votes_total))
-# print(circles)
-# print(circles[0])
-# print(circles[0][0])
-# print(circles[0][0][0])
-
-
-print('plotting final grid')
-final_grid = np.zeros(np.shape(intensity_total))
-for i in range(len(radius_of_coins)):
-    for j in range(len(circles[i][0])):
-        final_grid += draw_circle(final_grid,
-                                  circles[i][0], radius_of_coins[i])
-print('done')
-
-dispay_image(zscore(final_grid))
