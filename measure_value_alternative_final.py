@@ -9,7 +9,7 @@ def zscore(img):
 
 
 file_name = '19.2 capstone_coins.png'
-reduction_ratio = 2
+reduction_ratio = 1
 
 image_gray = cv2.imread(file_name, 0)
 image_color = cv2.imread(file_name, 1)
@@ -30,8 +30,7 @@ axarr[0, 1].imshow(image_color)
 axarr[1, 0].imshow(zscore(image_blurred), cmap='gray')
 
 circles = cv2.HoughCircles(image_blurred, cv2.HOUGH_GRADIENT, 1, 100,
-                           param1=35, param2=45, minRadius=20, maxRadius=250)
-
+                           param1=7, param2=70, minRadius=60, maxRadius=250)
 
 if circles is not None:
     circles = np.round(circles[0, :]).astype('int')
@@ -43,10 +42,11 @@ axarr[1, 1].imshow(image_color)
 plt.show()
 
 radius_of_coins_to_find = np.round(
-    np.array([44, 52, 62, 67]) * 2/reduction_ratio)
-value_of_coins = [5, 1, 10, 2]
+    np.array([88, 104, 124, 134, 140]) * reduction_ratio)
+value_of_coins = [5, 1, 10, 2, 50]
 
 radius_of_coins_found = circles[:, -1]
+print(radius_of_coins_found)
 
 radius_of_coins_found = np.reshape(
     radius_of_coins_found, (np.shape(radius_of_coins_found)[0], 1))
